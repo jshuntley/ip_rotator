@@ -5,7 +5,6 @@ TOR_DIR="$HOME/.tor"
 TORRC_PATH="$TOR_DIR/torrc"
 COOKIE_PATH="$TOR_DIR/control.authcookie"
 CONTROL_PORT=9051
-GITHUB_TORRC_URL="https://raw.githubusercontent.com/jshuntley/ip_rotator/refs/heads/main/torrc"  # <-- Replace this with your actual torrc URL
 
 # === STEP 0: Validate input ===
 if [[ -z "$1" || ! "$1" =~ ^[0-9]+$ || "$1" -le 0 ]]; then
@@ -57,64 +56,52 @@ if ! command -v tor &> /dev/null; then
 fi
 
 # === STEP 2: Create torrc dynamically ===
-mkdir -p "$TOR_DIR"
-
-cat > "$TORRC_PATH" <<EOF
-## Allow applications to use Tor via SOCKS5
-SocksPort 9050
-
-## Enable control over Tor from the CLI (for rotating circuits, etc.)
-ControlPort $CONTROL_PORT
-
-## Use cookie authentication (more secure than password)
-CookieAuthentication 1
-CookieAuthFile $COOKIE_PATH
-
-## Optional: Limit exit nodes by country
-# ExitNodes {us},{ca}
-# StrictNodes 1
-
-## Optional: Disable DNS leaks
-DNSPort 5353
-AutomapHostsOnResolve 1
-
-## Required: Store Tor's runtime state (including cookie)
-DataDirectory $DATA_DIR
-EOF
-
-# === STEP 3: Download torrc if not present ===
-mkdir -p "$TOR_DIR"
-
 if [ ! -f "$TORRC_PATH" ]; then
-  echo "⬇️ Downloading basic torrc from GitHub..."
-  curl -fsSL "$GITHUB_TORRC_URL" -o "$TORRC_PATH"
+  mkdir -p "$TOR_DIR"
 
-  if [ $? -ne 0 ]; then
-    echo "❌ Failed to download torrc from GitHub."
-    exit 1
-  fi
+  cat > "$TORRC_PATH" <<EOF
+  ## Allow applications to use Tor via SOCKS5
+  SocksPort 9050
+
+  ## Enable control over Tor from the CLI (for rotating circuits, etc.)
+  ControlPort ${CONTROL_PORT}
+
+  ## Use cookie authentication (more secure than password)
+  CookieAuthentication 1
+  CookieAuthFile ${COOKIE_PATH}
+
+  ## Optional: Limit exit nodes by country
+  # ExitNodes {us},{ca}
+  # StrictNodes 1
+
+  ## Disable DNS leaks
+  DNSPort 5353
+  AutomapHostsOnResolve 1
+
+  ## Required: Store Tor's runtime state (including cookie)
+  DataDirectory ${DATA_DIR}
+EOF
 fi
 
-# === STEP 4: Start Tor (user-owned) if not already running ===
+# === STEP 3: Start Tor (user-owned) if not already running ===
 if ! pgrep -x "tor" > /dev/null; then
   echo "Starting Tor with torrc: $TORRC_PATH"
   tor -f "$TORRC_PATH" &> "$TOR_DIR/tor.log" &
   sleep 5
 fi
 
-# === STEP 5: Check for control.authcookie ===
+# === STEP 4: Check for control.authcookie ===
 if [ ! -f "$COOKIE_PATH" ]; then
   echo "❌ control.authcookie not found at $COOKIE_PATH"
   echo "Tor may have failed to start. Check log: $TOR_DIR/tor.log"
   exit 1
 fi
 
-# === STEP 6: Begin rotation loop ===
+# === STEP 5: Begin rotation loop ===
 echo "Rotating Tor IP every $1 minute(s)... (Ctrl+C to stop)"
 while true; do
   COOKIE=$(xxd -p "$COOKIE_PATH" | tr -d '\n')
-
-  RESPONSE=$((echo authenticate $COOKIE ; echo signal newnym; echo quit) | nc 127.0.0.1 9051)
+   RESPONSE=$((echo authenticate $COOKIE ; echo signal newnym; echo quit) | nc 127.0.0.1 9051)
 
   if echo "$RESPONSE" | grep -q "250 OK"; then
     IP=$(torsocks curl -s https://checkip.amazonaws.com)
