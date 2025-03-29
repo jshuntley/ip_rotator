@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # === CONFIG ===
-TOR_DIR="/etc/tor"
+TOR_DIR="$HOME/.tor"
 TORRC_PATH="$TOR_DIR/torrc"
-COOKIE_PATH="$HOME/.tor/control.authcookie"
+COOKIE_PATH="$TOR_DIR/control.authcookie"
 CONTROL_PORT=9051
-GITHUB_TORRC_URL="https://raw.githubusercontent.com/yourusername/yourrepo/main/torrc"  # <-- Replace this with your actual torrc URL
+GITHUB_TORRC_URL="https://raw.githubusercontent.com/jshuntley/ip_rotator/refs/heads/main/torrc"  # <-- Replace this with your actual torrc URL
 
 # === STEP 0: Validate input ===
 if [[ -z "$1" || ! "$1" =~ ^[0-9]+$ || "$1" -le 0 ]]; then
