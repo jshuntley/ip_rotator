@@ -60,11 +60,26 @@ fi
 mkdir -p "$TOR_DIR"
 
 cat > "$TORRC_PATH" <<EOF
+## Allow applications to use Tor via SOCKS5
+SocksPort 9050
+
+## Enable control over Tor from the CLI (for rotating circuits, etc.)
 ControlPort $CONTROL_PORT
+
+## Use cookie authentication (more secure than password)
 CookieAuthentication 1
 CookieAuthFile $COOKIE_PATH
+
+## Optional: Limit exit nodes by country
+# ExitNodes {us},{ca}
+# StrictNodes 1
+
+## Optional: Disable DNS leaks
+DNSPort 5353
+AutomapHostsOnResolve 1
+
+## Required: Store Tor's runtime state (including cookie)
 DataDirectory $DATA_DIR
-SocksPort 9050
 EOF
 
 # === STEP 3: Download torrc if not present ===
