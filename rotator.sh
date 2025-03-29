@@ -56,7 +56,18 @@ if ! command -v tor &> /dev/null; then
   fi
 fi
 
-# === STEP 2: Download torrc if not present ===
+# === STEP 2: Create torrc dynamically ===
+mkdir -p "$TOR_DIR"
+
+cat > "$TORRC_PATH" <<EOF
+ControlPort $CONTROL_PORT
+CookieAuthentication 1
+CookieAuthFile $COOKIE_PATH
+DataDirectory $DATA_DIR
+SocksPort 9050
+EOF
+
+# === STEP 3: Download torrc if not present ===
 mkdir -p "$TOR_DIR"
 
 if [ ! -f "$TORRC_PATH" ]; then
@@ -69,21 +80,21 @@ if [ ! -f "$TORRC_PATH" ]; then
   fi
 fi
 
-# === STEP 3: Start Tor (user-owned) if not already running ===
+# === STEP 4: Start Tor (user-owned) if not already running ===
 if ! pgrep -x "tor" > /dev/null; then
   echo "Starting Tor with torrc: $TORRC_PATH"
   tor -f "$TORRC_PATH" &> "$TOR_DIR/tor.log" &
   sleep 5
 fi
 
-# === STEP 4: Check for control.authcookie ===
+# === STEP 5: Check for control.authcookie ===
 if [ ! -f "$COOKIE_PATH" ]; then
   echo "❌ control.authcookie not found at $COOKIE_PATH"
   echo "Tor may have failed to start. Check log: $TOR_DIR/tor.log"
   exit 1
 fi
 
-# === STEP 5: Begin rotation loop ===
+# === STEP 6: Begin rotation loop ===
 echo "Rotating Tor IP every $1 minute(s)... (Ctrl+C to stop)"
 while true; do
   COOKIE=$(xxd -p "$COOKIE_PATH" | tr -d '\n')
