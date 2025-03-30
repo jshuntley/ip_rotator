@@ -126,11 +126,11 @@ if ! pgrep -x "tor" > /dev/null; then
 fi
 
 # === STEP 4: Check for control_auth_cookie ===
-if [ ! -f "$COOKIE_PATH" ] || [ "$(stat -c%s "$COOKIE_PATH")" -ne 32 ]; then
+FILESIZE=$(wc -c < "$COOKIE_PATH")
+if [ ! -f "$COOKIE_PATH" ] || [ "$FILESIZE" -ne 32 ]; then
   echo "❌ Invalid or missing control_auth_cookie at $COOKIE_PATH"
   exit 1
-fi
-    
+fi    
 chmod 600 "$COOKIE_PATH"
 
 # === STEP 5: Begin rotation loop ===
@@ -141,7 +141,7 @@ while true; do
   RESPONSE=$( (echo authenticate $COOKIE; echo signal newnym; echo quit) | nc 127.0.0.1 9051 )
 
   if echo "$RESPONSE" | grep -q "250 OK"; then
-    IP=$(torsocks curl -s https://check.torproject.org | grep -oP '(?<=<strong>)[0-9.]+(?=</strong>)')
+    IP=$(torsocks curl -s https://check.torproject.org | sed -n 's:.*<strong>\([0-9.]*\)</strong>.*:\1:p')
     printf "✅ IP rotated successfully at $(date)\nNew IP: \033[32m$IP\033[0m\n"
   else
     echo "❌ Failed to rotate IP at $(date)"
