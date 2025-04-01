@@ -47,20 +47,20 @@ if ! command -v tor &> /dev/null; then
 
     case "$ID" in
       debian | ubuntu | kali | parrot)
-        sudo apt update -qq && sudo apt install -y tor >/dev/null
+        sudo apt update -qq && sudo apt install -y tor torsocks >/dev/null
         ;;
       arch | manjaro)
-        sudo pacman -Sy --noconfirm tor >/dev/null
+        sudo pacman -Sy --noconfirm tor torsocks >/dev/null
         ;;
       fedora)
-        sudo dnf install -y tor -q >/dev/null
+        sudo dnf install -y tor torsocks -q >/dev/null
         ;;
       centos | rhel)
         sudo yum install -y epel-release >/dev/null
-        sudo yum install -y tor >/dev/null
+        sudo yum install -y tor torsocks >/dev/null
         ;;
       opensuse* | suse*)
-        sudo zypper install -y tor >/dev/null
+        sudo zypper install -y tor torsocks >/dev/null
         ;;
       *)
         echo "❌ Unsupported Linux distribution: $ID. Please manually install Tor."
@@ -134,14 +134,20 @@ fi
 chmod 600 "$COOKIE_PATH"
 
 # === STEP 5: Begin rotation loop ===
-echo "Rotating Tor IP every $(($INTERVAL / 60)) minute(s)... (Ctrl+C to stop)"
+if [[ -n "$EXIT_NODES" ]]; then
+  printf "Rotating Tor IP every \033[32m$(($INTERVAL / 60)) minute(s)\033[0m using \033[32m$EXIT_NODES\033[0m exit nodes... (Ctrl+C to stop)\n"
+else
+  printf "Rotating Tor IP every \033[32m$(($INTERVAL / 60)) minute(s)\033[0m... (Ctrl+C to stop)\n"
+fi
 printf "ℹ️ Don't forget to 'torify' your shell with: \033[34msource torsocks on\033[0m\n"
 while true; do
   COOKIE=$(xxd -p "$COOKIE_PATH" | tr -d '\n')
   RESPONSE=$( (echo authenticate $COOKIE; echo signal newnym; echo quit) | nc 127.0.0.1 9051 )
+  CHECK=$( curl --proxy socks5h://127.0.0.1:9050 -s https://check.torproject.org/api/ip )
+  TOR_STATUS=$( echo "$CHECK" | sed -n 's/.*"IsTor":\([a-z]*\),.*/\1/p' ) 
 
-  if echo "$RESPONSE" | grep -q "250 OK"; then
-    IP=$(torsocks curl -s https://check.torproject.org | sed -n 's:.*<strong>\([0-9.]*\)</strong>.*:\1:p')
+  if echo "$RESPONSE" | grep -q "250 OK" && [[ "$TOR_STATUS" == "true" ]]; then
+    IP=$( echo "$CHECK" | sed -n 's/.*"IP":"\([0-9.]*\)".*/\1/p' )
     printf "✅ IP rotated successfully at $(date)\nNew IP: \033[32m$IP\033[0m\n"
   else
     echo "❌ Failed to rotate IP at $(date)"

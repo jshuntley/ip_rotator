@@ -6,7 +6,9 @@ The script will default to a 10 min rotation time and random exit nodes if you d
 ## Installation and Use
 You can clone the whole repo
 ```
-git clone https://github.com/jshuntley/ip_rotator.git
+git clone https://github.com/jshuntley/ip_rotator.git \
+cd ip_rotator \
+chmod +x rotor.sh
 ```
 
 You can also just curl the script itself
